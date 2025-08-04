@@ -1,7 +1,8 @@
 package com.ramkrushna.orderservice.controller;
 
+
+
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,9 +25,7 @@ public class OrderController {
 		orderService.placeOrder(orderRequest);
 		return "order placed succesfully";
 	}
-	
-	@GetMapping("/test")
-    public String testOrder() {
-        return "Order service working";
-    }
-} 
+
+}
+
+
