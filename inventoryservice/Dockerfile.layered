@@ -1,0 +1,15 @@
+# ---------- Stage 1: Extract layers ----------
+FROM eclipse-temurin:21-jre AS extractor
+WORKDIR extracted
+ADD target/*.jar app.jar
+RUN java -Djarmode=layertools -jar app.jar extract
+
+# ---------- Stage 2: Build runtime image ----------
+FROM eclipse-temurin:21-jre AS runtime
+WORKDIR application
+COPY --from=extractor extracted/dependencies/ ./
+COPY --from=extractor extracted/snapshot-dependencies/ ./
+COPY --from=extractor extracted/spring-boot-loader/ ./
+COPY --from=extractor extracted/application/ ./
+EXPOSE 8083
+ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
