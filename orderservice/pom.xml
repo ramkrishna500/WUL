@@ -64,6 +64,11 @@
 			<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
 			<version>4.3.0</version>
 		</dependency>
+		<dependency>
+			<groupId>com.ramkrushna</groupId>
+			<artifactId>notificationservice</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
 	</dependencies>
 
 	<build>
