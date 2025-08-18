@@ -18,6 +18,7 @@ import com.ramkrushna.orderservice.model.OrderLineItems;
 import com.ramkrushna.orderservice.repository.OrderRepository;
 
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
@@ -25,11 +26,10 @@ import lombok.RequiredArgsConstructor;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final WebClient.Builder webClientBuilder;   // injected via @LoadBalanced bean
-    private final KafkaTemplate<String,OrderPlaceEvent> kafkaTemplate;
+    private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, OrderPlaceEvent> kafkaTemplate;
 
-    public void placeOrder(OrderRequest orderRequest) {
-
+    public Mono<String> placeOrder(OrderRequest orderRequest) {
         // build Order aggregate
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
@@ -45,25 +45,25 @@ public class OrderService {
                 .map(OrderLineItems::getSkuCode)
                 .toList();
 
-        // ----- call Inventory service via Eureka -----
-        InventoryResponse[] inventoryResponseArray = webClientBuilder.build()
+        // call inventory service (non-blocking)
+        return webClientBuilder.build()
                 .get()
-                // lb:// tells the load-balanced WebClient to use Eureka.
                 .uri("lb://inventoryservice/api/inventory",
-                     uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
+                        uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
                 .retrieve()
                 .bodyToMono(InventoryResponse[].class)
-                .block();
+                .map(inventoryResponseArray -> {
+                    boolean allInStock = Arrays.stream(inventoryResponseArray)
+                            .allMatch(InventoryResponse::isInStock);
 
-        boolean allInStock = Arrays.stream(inventoryResponseArray)
-                                   .allMatch(InventoryResponse::isInStock);
-
-        if (allInStock) {
-            orderRepository.save(order);
-            kafkaTemplate.send("notificationTopic", new OrderPlaceEvent(order.getOrderNumber()));
-        } else {
-            throw new IllegalArgumentException("Product is not in stock. Please try later");
-        }
+                    if (allInStock) {
+                        orderRepository.save(order);  // <-- still blocking JPA call
+                        kafkaTemplate.send("notificationTopic", new OrderPlaceEvent(order.getOrderNumber()));
+                        return "Order placed successfully";
+                    } else {
+                        throw new IllegalArgumentException("Product is not in stock. Please try later");
+                    }
+                });
     }
 
     // helper to map DTO → entity

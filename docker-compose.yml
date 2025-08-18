@@ -1,4 +1,120 @@
 services:
+  ## MySQL Docker Compose Config
+  postgres-order:
+    container_name: postgres-order
+    image: postgres
+    environment:
+      POSTGRES_DB: orderservice
+      POSTGRES_USER: ptechie
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
+    volumes:
+      - ./postgres-order:/data/postgres
+    expose:
+      - "5431"
+    ports:
+      - "5431:5431"
+    command: -p 5431
+    restart: always
+
+  postgres-inventory:
+    container_name: postgres-inventory
+    image: postgres
+    environment:
+      POSTGRES_DB: inventoryservice
+      POSTGRES_USER: ptechie
+      POSTGRES_PASSWORD: password
+      PGDATA: /data/postgres
+    volumes:
+      - ./postgres-inventory:/data/postgres
+    ports:
+      - "5432:5432"
+    restart: always
+
+  ## Mongo Docker Compose Config
+  mongo:
+    container_name: mongo
+    image: mongo:4.4.14-rc0-focal
+    restart: always
+    ports:
+      - "27017:27017"
+    expose:
+      - "27017"
+    volumes:
+      - ./mongo-data:/data/db
+    ## Eureka Server
+
+  # Eureka Server
+  discoveryserver:
+    image: ramkrishna500/wul:discoveryserver
+    container_name: discoveryserver
+    ports:
+      - "18761:8761"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+
+  apigateway:
+    image: ramkrishna500/wul:apigateway
+    container_name: apigateway
+    ports:
+      - "8181:8080"
+    expose:
+      - "8181"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=TRACE
+    depends_on:
+      - discoveryserver
+      
+
+  # Product-Service
+  productservice:
+    image: ramkrishna500/wul:product
+    container_name: product
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - mongo
+      - discoveryserver
+      - apigateway
+
+  # Order-Service
+  orderservice:
+    image: ramkrishna500/wul:order
+    container_name: order
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5431/orderservice
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=broker:29092   # <-- force Kafka broker inside Docker
+    depends_on:
+      - postgres-order
+      - broker
+      - discoveryserver
+      - apigateway
+
+  # Inventory-Service
+  inventoryservice:
+    image: ramkrishna500/wul:inventory
+    container_name: inventory
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventoryservice
+    depends_on:
+      - postgres-inventory
+      - discoveryserver
+      - apigateway
+
+  # Notification-Service
+  notification-service:
+    image: ramkrishna500/wul:notification
+    container_name: notification
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=broker:29092   # <-- force Kafka broker inside Docker
+    depends_on:
+      - broker
+      - discoveryserver
+      - apigateway
   broker:
     image: apache/kafka:latest
     hostname: broker
