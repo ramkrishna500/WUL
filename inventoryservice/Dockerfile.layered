@@ -1,7 +1,7 @@
 # ---------- Stage 1: Extract layers ----------
 FROM eclipse-temurin:21-jre AS extractor
 WORKDIR extracted
-ADD target/*.jar app.jar
+ADD target/inventoryservice-0.0.1-SNAPSHOT.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
 
 # ---------- Stage 2: Build runtime image ----------

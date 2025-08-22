@@ -11,4 +11,4 @@ COPY target/*.jar app.jar
 EXPOSE 8084
 
 # Run the JAR
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java","-jar","app.jar","--spring.profiles.active=docker"]
